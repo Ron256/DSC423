@@ -1,0 +1,211 @@
+---
+title: "Tutorial 9.4"
+author: "Ronaldlee Ejalu"
+date: "11/12/2020"
+output: html_document
+---
+
+## We are going to go over doing ridge regression and lasso regression in R
+## We are going to use the glmnet package
+## Install the glmnet package
+```{r}
+install.packages("glmnet")
+```
+## Once installed, load it into R-studio
+## load package
+```{r}
+library(glmnet)
+```
+
+## We are going to use the swiss dataset which is downloaded when R is installed.
+```{r}
+swiss <- datasets::swiss
+```
+
+## We are going to try to predict infant mortality.
+## That's going to be our y based on these other five features.
+
+
+
+## When we pass something to the glmnet, it is expecting a matrix, x which is the indepedent varaibles,  
+## and y, which is a double, a list of doubles, which is our dependent variable
+## So we need to set the variables up for that. 
+## I am going to do that by going into the Swiss dataset, this is a blank below, that right there is blank
+## So that is going to give me all the rows, but 1:5 is going to give me a subset of columns.
+## It is going to give me columns 1 through 5
+
+```{r}
+#I am going to save that as a matrix
+# I am going to just put that in my x variable
+x <- as.matrix(swiss[,1:5])
+# Going to the same thing with y
+# I am saying give me all the rows because I am leaving that part blank
+# but I am saying only give me the sixth column,
+# and I' m saving that as a double
+# that's going to be a list of numbers and there is my y
+y <- as.double(swiss[,6])
+
+
+
+## So it's going to fit a GLM with lasso or elasticnet regularization
+# On e of the things I want you to notice is the Apha So the elasticnet mixing parameter, somewhere between zero and one, and this is the penalty
+#If you look right there, this is the ,(1-α)/2||β||_2, L2 norm and this is the, α||β||_1, L1 norm, and it's goint ot mix both of them.
+# Swo when you set Alpha euqal to one, you are relying entirely on the L1 norm, so that is going to be your lasso regression. 
+# when you set Alpha equal to zero, then this, α||β||_1, drop outs and 1 minus 0 is 1, So you are going to be relying entirely on this
+# 1-α)/2||β||_2^2, this is going to be the penalty function for the ridge regression.
+# There is something called the elasticnet where we try to blend ridge regression and lasso
+# We can do a little bit of an example about that in a bit.
+# but long story short, if we want lasso, Alpha needs to be set equal to one, and if we set alpha equal to zero, 
+# if we set alpha equal to zero, then we are doing rigde.
+help(glmnet)
+
+#If we look at the help now for cv.glmnet,
+#This is cross validation glmnet
+# we can see that it does k-fold cross-validation for glmnet
+# produces a plot and returns a value for lambda
+#So this is going to help choose what the appropriate Lambda
+# should be for the model.
+# Remember that if Lambda is zero, that penalty function will just drop out and if we raise it too high,
+# then we run the risk of excluding important variables from the model. 
+help(cv.glmnet)
+#alirght because we are dealing with cross-validation, 
+# we are dealing some training and test sets,
+# this means we're dealing with random numbers.
+# So we are going to set the seed here to 123.
+set.seed(123)
+#Here, we are going to run the ridge regression. 
+#So cv.glmnet, x is my independent variables,  y is my dependent variables
+# Families with a Gaussian, that is for the selection process, 
+# and alpha is zero because I am doing ridge
+ridge <- cv.glmnet(x, y, family = "gaussian", alpha = 0)
+#it doesn't  give you the same output as the regression model you are used to.
+# but we can look at some things. 
+
+# Results
+# This is showing you a Lambda versus the MeanSquared Error
+plot(ridge)
+
+ridge$lambda.min
+#if we ask what Lambda it shows, shows a value of 0.703 
+#which is indicated in the graph between 0 and 2
+# because that minimizes the MeanSquared Error
+# and also minimises the prediction window
+# It's trying to do both of those.
+
+# if we do coefficients, we pass ridge as coefficients with
+# Lambda min that we discovered
+coef(ridge, s = ridge$lambda.min)
+
+#Here are my coefficients, so these are my Betas.
+# We don't get a t-test here when we do ridge regression.
+# This right here is my model.
+# The y intercept is my Beta zero, 
+# 0.092589304 is my Beta 1
+# -0.017156015 is my beta 2
+# 0.015672377 is my beta 3
+# 0.014183069 is my beta 4
+# 0.004312729 is my beta 5
+# Because these all stayed in the model, 
+# well, these here are little bit zero, I might investigate Catholic, Education, and Examination
+# to see if they really belong in the model.
+# we might see more about it in the lasso regression. 
+
+## Let look at Lasso regression now.
+# Once again, I am going to set the seed to 123
+# just to make sure I get the same results.
+set.seed(123)
+#This line is exactly the same as before cv.glmnet, x, y, family is Gaussian, but now my Alpha is one.
+# So this is going to be a lasso regression.
+lasso <- cv.glmnet(x, y, family = "gaussian", alpha = 1)
+
+#Results
+# plot the lasso model
+plot(lasso)
+# I get a similar thing
+# You can see my MeanSquare Error goes down and eventually goes up again. 
+# it shows o.24 
+
+# And I can ask it what Lambda it shows, show 0.24
+# right where it starts to go back up,
+# in part because that minimizes the MeanSquare Error, 
+# and in part because it reduces the threshold here. 
+lasso$lambda.min
+# Now, the interesting thing about lasso regression
+# is that three of the variables were excluded
+coef(lasso, s = lasso$lambda.min)
+#So remember that the manifold for the lasso penalty,
+# it got those points in it (Examination, Education, Catholic), these infection points
+# That results in some of the Betas being set to zero. 
+# So Examination, Education, and Catholic, they were ultimately excluded from the model.
+# because their Beta was set to zero. 
+# And we were left with Agriculture and Fertility
+# So now we have a much reduced model. 
+# This is why lasso is a form of feature selection while 
+# ridge is often better for dealing with multicollinearity in the data.
+# I would not just use these variables and run them, 
+# I might use lasso as a feature selection technique and then once
+# I have decided that Agriculture and Fertility are the right variables to use,
+# I might run a standard linear regression model. 
+
+# Let's do one more
+# here, we run the set seed
+set.seed(123)
+# we set alpha equal to 0.5
+# So this is now a blend of the ridge regression and the lasso regression. 
+# Everything else is the same. 
+elasticNet <- cv.glmnet(x, y, family = "gaussian", alpha = 0.5)
+# When we do that, that's called an elasticnet model.
+# we didn't cover that in the slides but it might be something 
+# that you will see when are trying to look up how to run this code
+# particukary when you are looking up the glmnet models.
+# we can plot that again, we get a similar plot
+plot(elasticNet)
+
+# we can ask what Lambda chose, 0.49
+elasticNet$lambda.min
+#we can see the coefficients
+coef(elasticNet, s = elasticNet$lambda.min)
+
+# Here we did some sort of future selection again,
+# and the betas we got were similar but not exactly the same.
+# That is how you do lasso and ridge regression in R.
+```
+#Load the heart diseas data set
+```{r}
+HeartDiseaseRate <- read.csv("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/HeartDiseaseRate.csv")
+```
+
+# Summary of the data set
+```{r}
+summary(HeartDiseaseRate)
+```
+
+# creating separate structures
+```{r}
+x <- as.matrix(HeartDiseaseRate[,2:30])
+y <- as.double(HeartDiseaseRate[,1])
+```
+
+#load the glmnet package
+```{r}
+library(glmnet)
+```
+
+#build a lasso model
+```{r}
+set.seed(123)
+lasso <- cv.glmnet(x, y, family = "gaussian", alpha = 1)
+plot(lasso)
+lasso$lambda.min
+
+coef(lasso, s = lasso$lambda.min)
+
+# increasing lambda to 2
+coef(lasso, s = 2)
+```
+
+
+
+
+
+

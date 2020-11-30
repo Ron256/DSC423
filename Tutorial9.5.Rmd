@@ -1,0 +1,171 @@
+---
+title: "Tutorial9.5"
+author: "Ronaldlee Ejalu"
+date: "11/13/2020"
+output: html_document
+---
+
+# In this tutorial
+# We are going to go over running logistic regression in R
+# we are using the admin dataset
+
+#load the data set
+```{r}
+admit <- read.csv("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/admit.csv")
+```
+
+# So integers don't have decimals like the gpa variable
+# What we want to do is we want to predict whether or not somone is going
+# to be admitted to the school based on their GRE scores, their GPA, and the # rank of their high school
+# when you look at the data set, the admit variable in the row
+# it is a number, it's not an integer
+# This is a yes or no.
+# So this should be a level and the same thing with rank.
+# You see this alot in ratings of movies.
+# You can give a movie a five-star, four-star, three-star.
+# The difference between a four star and a five star might not necessarily be the same ass the difference between a one-star and a two-star
+# So those are not number, but integers.
+# Those should actually be levels, factors
+# So the first thing to do we are going to is look
+# at the summary of the data.
+```{r}
+summary(admit)
+```
+
+#take rank from admit
+# we are going to make it a factor and save it back as rank in admit
+# it will be set as factor with levels
+```{r}
+admit$rank <- factor(admit$rank)
+```
+
+# Same thing that happens when you do admit
+```{r}
+admit$admit <- factor(admit$admit)
+summary(admit)
+#when you do a summary, it shows 273 rejections, 127 acceptances
+# rank, there are some top two schools and some schools
+# Most of the schools are right in the middle
+```
+
+# the model we are going to build is the glm model
+# the models we were building in the previous weeks were just LM models
+# linear models
+# this is a general linear model
+
+
+# So GLM is used to fit generalized linear models.
+# specified by giving a symbolic description of 
+# a linear predictor and a description of the error distribution.
+# there is a whole other family of things that you can do. 
+# So what are we doing? We have admit.
+# We are trying to predict admit given GRE, GPA, and rank
+# but remember admit here is now a factor,
+# it not a number anymore
+# it's a factor with two levels
+# So it's a binary variable
+# So we are going to us ethe family binomial
+# family= "binomial" is going to tell R 
+# that we are doing logistic regression
+```{r}
+help(glm)
+model <- glm(admit ~ gre + gpa + rank, data = admit, family = "binomial")
+
+#Results
+summary(model)
+
+# When you do a summary, those are nolonger T- tests
+# there are a little bit different but they can be interpreted 
+# in pretty much the same way
+# All of those variables look good to me.
+# If I' looking at rank three and rank four, 
+# these are very useful in determining 
+# whether or not students should be accepted
+# If I'm looking at rank three and rank four, 
+# these are very useful in determining whether or not students 
+# should be accepted
+# Because I'm choosing those I'm definitely going to keep rank two
+# GPA, GPA looks good, the P-Value there
+# That this Beta is equal to zero is rejected, 
+# accept the alternative that Beta is not equal to zero and 
+# I will use this 0.804038 as my estimation.
+# gre is a little questionable
+# if we were using an alpha of five percent, we would keep it
+# if we were trying to be more strict, maybe we would remove it.
+# I might want to look at the confusion matrix 
+# and see what happens if I remove gre versus keep it in there.
+# Maybe having a parsimonious model that did as well would be preferred.
+# I look at the beta of 0.002264for gre, remember how we interpret this
+# this means that for every unit change in GRE, 
+# the log odds of admittance changes by 0.2 percent
+# So remember that, 0.002264 represents the change in log odds.
+
+
+help("confint")
+# I can look at the confidence interval of the model.
+# this will give me the 95 percent confidence interval 
+# for all my variables
+confint(model)
+# So I believe that GRE is somewhere between 0.0013 and 0.004
+
+# coef(model) - I am getting the coefficients of my model.
+# exp(coef(model)) - here I am taking those models to the exponent to E
+# exp(coef(model))- 1, then I am subtracting one from all of those. 
+exp(coef(model))- 1
+
+# So before I had said that, for every unit change in GRE, 
+# the log odds changed by 0.2 percent. 
+# Now I can i see the results of exp(coef(model))- 1, 
+# because I have D-logged coefficients
+# now we can say that for every unit change in GPA for example, the probability of acceptance increases by 123 perecent.
+# that is a big difference
+# a difference of one in GPA is a big difference anyway, that explains alot.
+# we see that the rank one schools are more likely 
+# to be accepted 
+# and your are less likely to be if are in the rank two, or rank three or rank four and those go down a little bit.  
+# So this is how you run a logistic model
+
+#The next step would be to look at the true-false, false negatives e.t.c, and build the confusion matrix
+# Then based on what experiment you are running, calculate recall or 
+# precision or some other metric to measure the success of your model
+```
+
+# Load the Titanic data set.
+```{r}
+Titanic_abr <- read.csv("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/Titanic_abr.csv")
+```
+
+# Data cleaning
+```{r}
+Titanic_abr$Survived <- as.factor(Titanic_abr$Survived)
+Titanic_abr$Pclass <- as.factor(Titanic_abr$Pclass)
+Titanic_abr$Name <- NULL
+```
+
+# Structure of the data set
+```{r}
+summary(Titanic_abr)
+```
+
+# build a model
+```{r}
+model <- glm(Survived ~., family = "binomial", data = Titanic_abr)
+summary(model)
+
+exp(coef(model)) - 1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

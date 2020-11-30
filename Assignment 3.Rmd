@@ -1,0 +1,501 @@
+---
+title: "Assignment3"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+## attach all the necessary packages
+```{r}
+library(tidyverse)
+library(gtsummary)
+library(tableone)
+library(broom)
+library(car)
+```
+
+## Read data set
+```{r}
+pisa2009 <- read.csv("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/pisa2009.csv")
+summary(pisa2009)
+```
+
+## view data
+```{r}
+head(pisa2009) 
+tail(pisa2009)
+```
+
+## data structure
+```{r}
+str(pisa2009)
+```
+
+## select variables of interest
+```{r}
+pisa_select <- pisa2009 %>%
+  select(grade = grade
+         , male = male
+         , raceeth = raceeth
+         , preschool = preschool
+         , expectbachelors = expectBachelors
+         , motherhs = motherHS
+         , motherbachelors = motherBachelors
+         , motherwork = motherWork
+         , fatherhs = fatherHS
+         , fatherbachelors = fatherBachelors
+         , fatherwork = fatherWork
+         , selfbornus = selfBornUS
+         , motherbornus = motherBornUS
+         , fatherbornus = fatherBornUS
+         , englishathome = englishAtHome
+         , computerforschoolwork = computerForSchoolwork
+         , read30minsaday = read30MinsADay
+         , minutesperweekenglish = minutesPerWeekEnglish
+         , studentsinenglish = studentsInEnglish
+         , schoolhaslibrary = schoolHasLibrary
+         , publicschool = publicSchool
+         , urban = urban
+         , schoolsize = schoolSize
+         , readingscore = readingScore
+        )
+```
+
+## checking for missing values
+```{r}
+sum(is.na(pisa_select))
+```
+
+
+
+## data cleaning
+```{r}
+pisa_clean <- pisa_select %>%
+  transmute(grade = as.factor(grade)
+            , male = male
+            , raceeth = as.factor(raceeth)
+            , preschool = preschool
+            , expectbachelors = expectbachelors
+            , motherhs = motherhs
+            , motherbachelors = motherbachelors
+            , motherwork = motherwork
+            , fatherhs = fatherhs
+            , fatherbachelors = fatherbachelors
+            , fatherwork = fatherwork
+            , selfbornus = selfbornus
+            , motherbornus = motherbornus
+            , fatherbornus = fatherbornus
+            , englishathome = englishathome
+            , computerforschoolwork = computerforschoolwork
+            , read30minsaday = read30minsaday
+            , minutesperweekenglish = minutesperweekenglish
+            , studentsinenglish = studentsinenglish
+            , schoolhaslibrary = schoolhaslibrary
+            , publicschool = publicschool
+            , urban = urban
+            , schoolsize = schoolsize
+            , readingscore = readingscore) %>% 
+  
+mutate(raceeth = relevel(raceeth, ref = 'White')
+       , grade = relevel(grade, ref = '10')
+       )
+
+## we create a matrix for raceeth
+raceethdummies.matrix <- model.matrix(~pisa_clean$raceeth)
+## convert the model matrix into a data frame
+raceethdummies.frame <- data.frame(raceethdummies.matrix)
+pisa_clean <- cbind(pisa_clean, raceethdummies.frame)
+
+##Create a matrix for grade
+gradedummies.matrix <- model.matrix(~pisa_clean$grade)
+## convert the model matrix into a data frame
+gradedummies.frame <- data.frame(gradedummies.matrix)
+pisa_clean <- cbind(pisa_clean, gradedummies.frame)
+```
+
+
+## rename and select variables of interest after data cleaning
+```{r}
+pisacleansed <- pisa_clean %>%
+  select(readingscore = readingscore
+            , male = male
+            , preschool = preschool
+            , expectbachelors = expectbachelors
+            , motherhs = motherhs
+            , motherbachelors = motherbachelors
+            , motherwork = motherwork
+            , fatherhs = fatherhs
+            , fatherbachelors = fatherbachelors
+            , fatherwork = fatherwork
+            , selfbornus = selfbornus
+            , motherbornus = motherbornus
+            , fatherbornus = fatherbornus
+            , englishathome = englishathome
+            , computerforschoolwork = computerforschoolwork
+            , read30minsaday = read30minsaday
+            , minutesperweekenglish = minutesperweekenglish
+            , studentsinenglish = studentsinenglish
+            , schoolhaslibrary = schoolhaslibrary
+            , publicschool = publicschool
+            , urban = urban
+            , schoolsize = schoolsize
+            , american_indian_alaska_native = pisa_clean.raceethAmerican.Indian.Alaska.Native
+            , asian = pisa_clean.raceethAsian
+            , black = pisa_clean.raceethBlack
+            , hispanic = pisa_clean.raceethHispanic
+            , morethanonerace = pisa_clean.raceethMore.than.one.race
+            , nativehawaiianOtherPacificIslander = pisa_clean.raceethNative.Hawaiian.Other.Pacific.Islander
+            , G8 = pisa_clean.grade8
+            , G9 = pisa_clean.grade9
+            , G11 = pisa_clean.grade11
+            , G12 = pisa_clean.grade12)
+```
+
+
+
+## Perform an eighty-twenty split to partition the data set
+## into train and test data sets.
+```{r}
+set.seed(123)
+partition <- sample(2,nrow(pisacleansed),replace = TRUE, prob= c(0.80,0.20))
+train <- pisacleansed[partition==1, ]
+test <-  pisacleansed[partition==2, ]
+```
+
+## check for multicollinearity
+```{r}
+cor(pisacleansed)
+```
+
+
+## full model
+## Adjusted R-squared:  0.302 for A and correlation of 0.576
+```{r}
+modelA <- lm(readingscore ~ ., data = train)
+summary(modelA)
+prediction <- predict(modelA,test)
+actual =test$readingscore
+cor(prediction, actual)
+vif(modelA)
+```
+
+
+## Pruned selfbornus
+## Adjusted R-squared:  0.302 and correlation of 0.576
+```{r}
+modelB <- lm(readingscore ~ male+preschool+expectbachelors+motherhs+motherbachelors+motherwork+fatherhs+fatherbachelors
++ fatherwork + motherbornus+fatherbornus+englishathome+computerforschoolwork+read30minsaday
++ minutesperweekenglish+studentsinenglish+schoolhaslibrary+publicschool+urban+schoolsize
++ american_indian_alaska_native+asian+black+hispanic+morethanonerace+nativehawaiianOtherPacificIslander
++ G8 + G9 +G11 + G12, data = train)
+summary(modelB)
+prediction <- predict(modelB,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+
+## Prune out school has a library
+## Adjusted R-squared:  0.303 and correlation of 0.576
+```{r}
+modelC <- lm(readingscore ~ male+preschool+expectbachelors+motherhs+motherbachelors+motherwork+fatherhs+fatherbachelors
++ fatherwork + motherbornus+fatherbornus+englishathome+computerforschoolwork+read30minsaday
++ minutesperweekenglish+studentsinenglish + publicschool+urban+schoolsize
++ american_indian_alaska_native+asian+black+hispanic+morethanonerace+nativehawaiianOtherPacificIslander
++ G8 + G9 +G11 + G12, data = train)
+summary(modelC)
+prediction <- predict(modelC,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+
+## Prune out urban
+## Adjusted R-squared:  0.303  and correlation of 0.576
+```{r}
+modelD <- lm(readingscore ~ male + preschool + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish+studentsinenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = train)
+summary(modelD)
+prediction <- predict(modelD,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+## Pruned studentsinenglish
+## Adjusted R-squared:  0.303 and correlation of 0.576
+```{r}
+modelE <- lm(readingscore ~ male + preschool + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = train)
+summary(modelE)
+prediction <- predict(modelE,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+## Pruned Preschool
+Adjusted R-squared:  0.303  and correlation of 0.576
+```{r}
+modelF <- lm(readingscore ~ male  + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = train)
+summary(modelF)
+prediction <- predict(modelF,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+## Pruned fatherbornus
+## Adjusted R-squared:  0.304 and correlation of 0.576
+```{r}
+modelG <- lm(readingscore ~ male  + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = train)
+summary(modelG)
+prediction <- predict(modelG,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+## pruned fatherwork
+## Adjusted R-squared:  0.304 and correlation of 0.576
+```{r}
+modelH <- lm(readingscore ~ male  + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors  + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = train)
+summary(modelH)
+prediction <- predict(modelH,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+## pruned motherhs
+## Adjusted R-squared:  0.304 and correlation of 0.576
+```{r}
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors + motherwork + fatherhs + fatherbachelors  + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = train)
+summary(modeli)
+prediction <- predict(modeli,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+## Pruned motherbornus
+## Adjusted R-squared:  0.304 and 0.575
+```{r}
+modelk <- lm(readingscore ~ male  + expectbachelors  + motherbachelors + motherwork + fatherhs + fatherbachelors  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = train)
+summary(modelk)
+prediction <- predict(modelk,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+## Prunned  motherwork 
+```{r}
+modell <- lm(readingscore ~ male  + expectbachelors  + motherbachelors  + fatherhs + fatherbachelors  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12, data = pisacleansed)
+summary(modell)
+prediction <- predict(modelk,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+
+## 5 fold cross validation to validate  modelA
+## Average mean square error is 210964 
+```{r}
+library(DAAG)
+outA <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ .))
+             , plotit = "Observed", m=5)
+```
+
+## 5 fold cross validation to validate our modelB
+## Average mean square error is 5741 
+```{r}
+library(DAAG)
+outB <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ male + preschool + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs+fatherbachelors
++ fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday
++ minutesperweekenglish + studentsinenglish + schoolhaslibrary + publicschool + urban + schoolsize
++ american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12))
+             , plotit = "Observed", m=5)
+```
+
+## 5 fold cross validation to validate our modelC
+## Average mean square error is 5709 
+```{r}
+library(DAAG)
+outC <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ male + preschool + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors
++ fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday
++ minutesperweekenglish + studentsinenglish + publicschool + urban + schoolsize
++ american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12))
+             , plotit = "Observed", m=5)
+```
+
+## 5 fold cross validation to validate our modelD
+## Average mean square error is 5668 
+```{r}
+library(DAAG)
+outD <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ male + preschool + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish+studentsinenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12))
+             , plotit = "Observed", m=5)
+```
+
+## 5 fold cross validation to validate our modelE
+## Average mean square error is 5692
+```{r}
+outE <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ male + preschool + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12))
+             , plotit = "Observed", m=5)
+```
+
+## 5 fold cross validation to validate our modelF
+## Average mean square error of 5690 
+```{r}
+outF <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ male  + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus + fatherbornus + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12))
+             , plotit = "Observed", m=5)
+```
+
+## 5 fold cross validation to validate our modelG
+## Average mean square error of 5648
+```{r}
+outF <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ male  + expectbachelors + motherhs + motherbachelors + motherwork + fatherhs + fatherbachelors + fatherwork + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12))
+             , plotit = "Observed", m=5)
+```
+
+## 5 fold cross validation to validate our modelk
+## Average mean square error of 
+```{r}
+outK <- cv.lm(data = test
+             , form.lm = formula((readingscore ~ male  + expectbachelors  + motherbachelors  + fatherhs + fatherbachelors  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12))
+             , plotit = "Observed", m=5)
+```
+
+## table1
+## Shows descriptive statistics about your data
+```{r}
+CreateTableOne(vars = colnames(pisacleansed)
+               , data = pisacleansed)
+```
+
+## Count the number of times a value appears in the grade variable
+```{r}
+grade <- table(pisacleansed$nativehawaiianOtherPacificIslander)
+grade
+```
+
+
+
+## model selection for second oder terms
+## Adjusted R-squared:  0.316 
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors + motherwork + fatherhs + fatherbachelors  + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12 + minutesperweekenglishSQ, data = pisacleansed)
+summary(modeli)
+```
+
+
+## Prune motherwork 
+## Adjusted R-squared:  0.316 
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors  + fatherhs + fatherbachelors  + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native + asian + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12 + minutesperweekenglishSQ, data = pisacleansed)
+summary(modeli)
+```
+
+
+##Prune asian
+## Adjusted R-squared:  0.316 
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors  + fatherhs + fatherbachelors  + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace + nativehawaiianOtherPacificIslander + G8 + G9 +G11 + G12 + minutesperweekenglishSQ, data = pisacleansed)
+summary(modeli)
+```
+
+
+## Pruned nativehawaiianOtherPacificIslander
+## Adjusted R-squared:  0.316
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors  + fatherhs + fatherbachelors  + motherbornus  + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace  + G8 + G9 +G11 + G12 + minutesperweekenglishSQ, data = pisacleansed)
+summary(modeli)
+```
+
+## Pruned motherbornus
+## Adjusted R-squared:  0.316
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors  + fatherhs + fatherbachelors    + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace  + G8 + G9 +G11 + G12 + minutesperweekenglishSQ, data = pisacleansed)
+summary(modeli)
+```
+
+## Prune fatherhs
+## Adjusted R-squared:  0.315 
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors   + fatherbachelors    + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace  + G8 + G9 +G11 + G12 + minutesperweekenglishSQ, data = pisacleansed)
+summary(modeli)
+```
+
+
+
+## Check for interaction terms 
+## Adjusted R-squared:  0.317
+## two interactio terms
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors   + fatherbachelors    + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace  + G8 + G9 +G11 + G12 + minutesperweekenglishSQ + read30minsaday *minutesperweekenglish + motherbachelors* fatherbachelors, data = pisacleansed)
+summary(modeli)
+plot(modeli)
+```
+
+
+## Removing specific rows in r
+```{r}
+## Adding an index column to my data set
+pisacleansed$generated_uid <- 1:nrow(pisacleansed)
+pisacleansed <- pisacleansed[-c(2657,507,1879),]
+```
+
+##read30minsaday:minutesperweekenglish
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(readingscore ~ male  + expectbachelors  + motherbachelors   + fatherbachelors    + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace  + G8 + G9 +G11 + G12 + minutesperweekenglishSQ  + motherbachelors* fatherbachelors, data = pisacleansed)
+summary(modeli)
+```
+
+
+## Variable transformation
+## log of both independent variable
+## Adjusted R-squared:  0.322
+```{r}
+pisacleansed$minutesperweekenglishSQ <- pisacleansed$minutesperweekenglish^2
+modeli <- lm(log(readingscore + 1) ~ male  + expectbachelors  + motherbachelors   + fatherbachelors    + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace  + G8 + G9 +G11 + G12 + minutesperweekenglishSQ  + motherbachelors* fatherbachelors, data = pisacleansed)
+summary(modeli)
+vif(modeli)
+```
+
+
+##model evaluation
+
+## Perform an eighty-twenty split to partition the data set
+## into train and test data sets so that the model can be evaluated
+```{r}
+set.seed(123)
+partition <- sample(2,nrow(pisacleansed),replace = TRUE, prob= c(0.80,0.20))
+train <- pisacleansed[partition==1, ]
+test <-  pisacleansed[partition==2, ]
+
+modeli <- lm(log(readingscore + 1) ~ male  + expectbachelors  + motherbachelors   + fatherbachelors    + englishathome + computerforschoolwork + read30minsaday + minutesperweekenglish + publicschool + schoolsize + american_indian_alaska_native  + black + hispanic + morethanonerace  + G8 + G9 +G11 + G12 + minutesperweekenglishSQ + read30minsaday *minutesperweekenglish + motherbachelors* fatherbachelors, data = train)
+summary(modeli)
+prediction <- predict(modeli,test)
+actual =test$readingscore
+cor(prediction, actual)
+```
+
+
+
+
+## Creating sample dataset
+```{r}
+dsample <- train[sample(1:nrow(train), 1000,replace = FALSE),]
+##plot(dsample)
+```
+
+
+
+

@@ -1,0 +1,287 @@
+---
+title: "Assignment4"
+author: "Ronaldlee Ejalu"
+date: "11/19/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+## attach all the necessary packages
+```{r}
+library(tidyverse)
+library(gtsummary)
+library(tableone)
+library(broom)
+library(car)
+library(glmnet)
+library(plotmo)
+```
+
+## Read data set
+```{r}
+pisa2009 <- read.csv("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/pisa2009.csv")
+summary(pisa2009)
+```
+
+## view data
+```{r}
+head(pisa2009) 
+tail(pisa2009)
+```
+
+## data structure
+```{r}
+str(pisa2009)
+```
+
+## select variables of interest
+```{r}
+pisa_select <- pisa2009 %>%
+  select(grade = grade
+         , male = male
+         , raceeth = raceeth
+         , preschool = preschool
+         , expectbachelors = expectBachelors
+         , motherhs = motherHS
+         , motherbachelors = motherBachelors
+         , motherwork = motherWork
+         , fatherhs = fatherHS
+         , fatherbachelors = fatherBachelors
+         , fatherwork = fatherWork
+         , selfbornus = selfBornUS
+         , motherbornus = motherBornUS
+         , fatherbornus = fatherBornUS
+         , englishathome = englishAtHome
+         , computerforschoolwork = computerForSchoolwork
+         , read30minsaday = read30MinsADay
+         , minutesperweekenglish = minutesPerWeekEnglish
+         , studentsinenglish = studentsInEnglish
+         , schoolhaslibrary = schoolHasLibrary
+         , publicschool = publicSchool
+         , urban = urban
+         , schoolsize = schoolSize
+         , readingscore = readingScore
+        )
+```
+
+## checking for missing values
+```{r}
+sum(is.na(pisa_select))
+```
+
+
+
+## data cleaning
+```{r}
+pisa_clean <- pisa_select %>%
+  transmute(grade = as.factor(grade)
+            , male = male
+            , raceeth = as.factor(raceeth)
+            , preschool = preschool
+            , expectbachelors = expectbachelors
+            , motherhs = motherhs
+            , motherbachelors = motherbachelors
+            , motherwork = motherwork
+            , fatherhs = fatherhs
+            , fatherbachelors = fatherbachelors
+            , fatherwork = fatherwork
+            , selfbornus = selfbornus
+            , motherbornus = motherbornus
+            , fatherbornus = fatherbornus
+            , englishathome = englishathome
+            , computerforschoolwork = computerforschoolwork
+            , read30minsaday = read30minsaday
+            , minutesperweekenglish = minutesperweekenglish
+            , studentsinenglish = studentsinenglish
+            , schoolhaslibrary = schoolhaslibrary
+            , publicschool = publicschool
+            , urban = urban
+            , schoolsize = schoolsize
+            , readingscore = readingscore) %>% 
+  
+mutate(raceeth = relevel(raceeth, ref = 'White')
+       , grade = relevel(grade, ref = '10')
+       )
+
+## we create a matrix for raceeth
+raceethdummies.matrix <- model.matrix(~pisa_clean$raceeth)
+## convert the model matrix into a data frame
+raceethdummies.frame <- data.frame(raceethdummies.matrix)
+pisa_clean <- cbind(pisa_clean, raceethdummies.frame)
+
+##Create a matrix for grade
+gradedummies.matrix <- model.matrix(~pisa_clean$grade)
+## convert the model matrix into a data frame
+gradedummies.frame <- data.frame(gradedummies.matrix)
+pisa_clean <- cbind(pisa_clean, gradedummies.frame)
+```
+
+
+## rename and select variables of interest after data cleaning
+```{r}
+pisacleansed <- pisa_clean %>%
+  select(readingscore = readingscore
+            , male = male
+            , preschool = preschool
+            , expectbachelors = expectbachelors
+            , motherhs = motherhs
+            , motherbachelors = motherbachelors
+            , motherwork = motherwork
+            , fatherhs = fatherhs
+            , fatherbachelors = fatherbachelors
+            , fatherwork = fatherwork
+            , selfbornus = selfbornus
+            , motherbornus = motherbornus
+            , fatherbornus = fatherbornus
+            , englishathome = englishathome
+            , computerforschoolwork = computerforschoolwork
+            , read30minsaday = read30minsaday
+            , minutesperweekenglish = minutesperweekenglish
+            , studentsinenglish = studentsinenglish
+            , schoolhaslibrary = schoolhaslibrary
+            , publicschool = publicschool
+            , urban = urban
+            , schoolsize = schoolsize
+            , american_indian_alaska_native = pisa_clean.raceethAmerican.Indian.Alaska.Native
+            , asian = pisa_clean.raceethAsian
+            , black = pisa_clean.raceethBlack
+            , hispanic = pisa_clean.raceethHispanic
+            , morethanonerace = pisa_clean.raceethMore.than.one.race
+            , nativehawaiianOtherPacificIslander = pisa_clean.raceethNative.Hawaiian.Other.Pacific.Islander
+            , G8 = pisa_clean.grade8
+            , G9 = pisa_clean.grade9
+            , G11 = pisa_clean.grade11
+            , G12 = pisa_clean.grade12)
+```
+
+##create a separate struncture for the independent variables and depedent variable
+```{r}
+x <- as.matrix(pisacleansed[,2:32])
+y <- as.double(pisacleansed[,1])
+```
+
+
+#Ridge Trace
+```{r}
+library(lmridge)
+lm_seq <- seq(0, 0.5, 0.001)
+fit <- lmridge(readingscore ~ ., data = pisacleansed, k = lm_seq)
+plot(fit, type="ridge",abline = TRUE)
+#lmridgeEst(readingscore ~ ., data = pisacleansed, k = lm_seq, scaling = "sc")
+#select(fit)
+```
+
+## Build the ridge regression model
+```{r}
+library(MASS)
+set.seed(123)
+ridge <- cv.glmnet(x, y, family="gaussian", alpha = 0)
+plotmo::plotres(ridge)
+#plot(ridge)
+fit.ridge <- glmnet(x,y, alpha = 0)
+plot(fit.ridge, xvar="lambda", label=TRUE)
+linearridge <- lmridge(readingscore ~ .,  data = pisacleansed, k = seq(0, 0.1, 0.01))
+```
+
+
+#Another approach
+```{r}
+plot(lm.ridge(y~x, pisacleansed, lambda = seq(0,4,0.1)))
+```
+
+
+#Results
+```{r}
+library(MASS)
+set.seed(123)
+ridge <- cv.glmnet(x, y, family="gaussian", alpha = 0)
+# This is showing you Lambda versus the MeanSquared Error
+plot(ridge)
+
+
+# if we ask what Lambda it shows a value of 4.046188
+# because that minimizes the Mean-Squared Error and also minimises the prediction window
+# so,it is trying to do both of those.
+ridge$lambda.min
+
+#If we pass the ridge as coefficients with the lambda min that we discovered
+coef(ridge, s = ridge$lambda.min)
+```
+
+
+#Using Lasso regression
+```{r}
+library(MASS)
+set.seed(123)
+lasso <- cv.glmnet(x, y, family="gaussian", alpha = 1)
+plot(lasso)
+#results
+# lambda value is 0.740751
+lasso$lambda.min
+
+#If we pass the ridge as coefficients with the lambda min that we discovered
+coef(lasso, s = lasso$lambda.min)
+
+```
+
+
+# Correlation among independent variables
+```{r}
+cor(pisacleansed)
+```
+#Load the remission data set
+```{r}
+remission <- read.csv("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/remission.csv")
+```
+
+#Covert variables as factor
+```{r}
+remission$remiss <- as.factor(remission$remiss)
+summary(remission)
+```
+
+#Build the model
+```{r}
+
+logisticmodel <- glm(remiss ~ cell + smear + infil + li + blast + temp, data = remission, family = "binomial")
+summary(logisticmodel)
+
+
+help("confint")
+# I can look at the confidence interval of the model.
+# this will give me the 95 percent confidence interval 
+# for all my variables
+confint(logisticmodel)
+# So I believe that GRE is somewhere between 0.0013 and 0.004
+
+coef(logisticmodel) #I am getting the coefficients of my model.
+# exp(coef(model)) - here I am taking those models to the exponent to E
+# exp(coef(model))- 1, then I am subtracting one from all of those. 
+exp(coef(logisticmodel))- 1
+
+# So before I had said that, for every unit change in GRE, 
+# the log odds changed by 0.2 percent. 
+# Now I can i see the results of exp(coef(model))- 1, 
+# because I have D-logged coefficients
+# now we can say that for every unit change in GPA for example, the probability of acceptance increases by 123 perecent.
+# that is a big difference
+# a difference of one in GPA is a big difference anyway, that explains alot.
+# we see that the rank one schools are more likely 
+# to be accepted 
+# and your are less likely to be if are in the rank two, or rank three or rank four and those go down a little bit.  
+# So this is how you run a logistic model
+
+#The next step would be to look at the true-false, false negatives e.t.c, and build the confusion matrix
+# Then based on what experiment you are running, calculate recall or 
+# precision or some other metric to measure the success of your model
+
+```
+
+
+
+
+
+
+
+
