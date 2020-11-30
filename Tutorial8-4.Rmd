@@ -1,0 +1,81 @@
+---
+title: "Tutorial8-4"
+output: html_document
+---
+
+## Load the file
+```{r}
+ kc_house_data <- read.csv("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/kc_house_data.csv")
+```
+
+## build the model
+```{r}
+model <- lm(price ~ bedrooms + bathrooms + sqft_living + view + yr_built, data = kc_house_data)
+summary(model)
+model$residuals
+##This is one of the our assumptions that the sum of the residuals ##should add up to zero. 
+sum(model$residuals)
+## Histogram of residuals
+## break defines the number of columns in the histogram
+hist(model$residuals, breaks = 100)
+
+##mean of the residuals and it should be close to zero
+mean = mean(model$residuals)
+mean
+
+## standard deviation of the residuals 
+## I am going to save it as sd
+sd = sd(model$residuals)
+
+## z-score normalization of all those residuals
+## model$residuals is a list of numbers 
+## mean is a single number
+## it is going to subtract a single number from everything in this list
+## and the result of this computation will be a new list
+## (model$residuals - mean) will be a list and we will divide each element in that list by the standard deviation. 
+resid_zscore = (model$residuals - mean)/sd
+
+## histogram of z-scores
+## frequency still the same as the residuals.
+## We see as we expect that 95 percent of the residuals are within two standard deviations.
+## There are outliers on the right something to be aware of.
+hist(resid_zscore, breaks = 100)
+## we checked that the sum is equal to zero
+## We checked that it's normal, pretty happy about that.
+
+## Now let's check if they'are independent and we can do it with the Durbin Watson Test.
+library(car)
+durbinWatsonTest(model)
+
+ # lag Autocorrelation D-W Statistic p-value
+ #   1       0.0123088      1.975344   0.046
+ # Alternative hypothesis: rho != 0
+
+## This is the p-value that the residuals are dependent on each other,
+## So we can quite, depending on if we have this pretty high,
+## we can reject that hypothesis and accept the alternative that they are not dependent on one another.
+## This is how we can check three of our assumptions.
+```
+
+## Load the WAFER data set
+```{r}
+WAFER <- read.delim("C:/Users/rejalu1/OneDrive - Henry Ford Health System/DSC423/DataSets/WAFER.txt")
+
+```
+
+## Fit the straight-line model
+```{r}
+model.wafer1 <- lm(FAILTIME ~ TEMP, data = WAFER)
+summary(model.wafer1)
+
+## plot the residuals
+plot(WAFER$TEMP, model.wafer1$residuals)
+
+## second Order Term evaluation 
+WAFER$TEMP_SQ <- WAFER$TEMP * WAFER$TEMP
+model.wafer2 <- lm(FAILTIME ~ TEMP + TEMP_SQ, data = WAFER)
+summary(model.wafer2)
+```
+
+
+
