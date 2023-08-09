@@ -28,5 +28,5 @@ Home Work Assignment project 4 focussed on:
 - deriving a LASSO regression model and presenting its results.
 - creating a logistic regression model for classification.
 
-Group Project focussed on predicting the number of COVID-19 Death cases in the U.S using regression analysis. Our analysis was performed using multiple regressions including first-order and interaction terms using the different age group variables along with the conditions, condition groups and regions.We use the F-Test, Adjusted R-Squared to measure the models.
+Finally, the group Project focussed on predicting the number of COVID-19 Death cases in the U.S using regression analysis. Our analysis was performed using multiple regressions including first-order and interaction terms using the different age group variables along with the conditions, condition groups and regions.We used the F-Test, Adjusted R-Squared to measure the models' performance.
 
